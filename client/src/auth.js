@@ -5,27 +5,56 @@ export function renderAuth(container, renderAppCallback) {
     onAuthSuccess = renderAppCallback; 
  
     container.innerHTML = `
-        <div style="display: flex; flex-direction: column; align-items: center; margin-top: 100px;">
-            <h2>${isLogin ? 'Login to Great Battle' : 'Register New Account'}</h2>
-            
-            <form id="auth-form" style="display: flex; flex-direction: column; gap: 10px; width: 300px;">
-                <input type="email" id="email" placeholder="Email" required style="padding: 10px; font-size: 16px;" />
+        <div class="auth-page">
+            <div class="auth-background"></div>
+            <div class="auth-content">
+                <div class="auth-left">
+                   <h1 class="game-title">GREAT BATTLE</h1>
+                    <p class="game-subtitle">
+                        Assemble your Marvel heroes and dominate the battlefield.</p> 
+                </div>
+                <div class="auth-card">
+                    <div class="auth-logo">GREAT BATTLE</div>
+                <h2>${isLogin ? 'Login to Great Battle' : 'Register New Account'}</h2>
+                <form id="auth-form" class="auth-form">
+                    ${isLogin 
+                        ? `
+                        <input 
+                            type="text" 
+                            id="login" 
+                            placeholder="EMAIL OR USERNAME" 
+                            required />` 
+                        : `
+                        <input 
+                            type="email" 
+                            id="email" 
+                            placeholder="EMAIL" 
+                            required />
+                        <input 
+                            type="text" 
+                            id="username" 
+                            placeholder="USERNAME" 
+                            required />`
+                    }                
+                    <input 
+                        type="password" 
+                        id="password" 
+                        placeholder="PASSWORD" 
+                        required />
                 
-                ${!isLogin ? '<input type="text" id="username" placeholder="Username" required style="padding: 10px; font-size: 16px;" />' : ''}
-                
-                <input type="password" id="password" placeholder="Password" required style="padding: 10px; font-size: 16px;" />
-                
-                <button type="submit" style="padding: 10px; cursor: pointer; background-color: #e74c3c; color: white; border: none;">
-                    ${isLogin ? 'Login' : 'Register'}
-                </button>
-            </form>
-
-            <p style="margin-top: 20px;">
-                ${isLogin ? "Don't have an account? " : "Already have an account? "}
-                <span id="toggle-auth" style="color: #3498db; cursor: pointer; text-decoration: underline;">
-                    ${isLogin ? 'Register here' : 'Login here'}
-                </span>
-            </p>
+                    <button type="submit" class="auth-btn">
+                        ${isLogin ? 'LOGIN' : 'REGISTER'}
+                    </button>
+                </form>
+                <div class="auth-switch">
+                    ${isLogin 
+                        ? "Don't have an account? " 
+                        : "Already have an account? "}
+                    <span id="toggle-auth">
+                        ${isLogin ? 'Register here' : 'Login here'}
+                    </span>
+                </div>
+            </div>
         </div>
     `;
 
@@ -37,17 +66,31 @@ export function renderAuth(container, renderAppCallback) {
 }
 
 async function handleSubmit(e) {
-    e.preventDefault(); 
-    
-    const emailInput = document.getElementById('email').value;
-    const passwordInput = document.getElementById('password').value;
-    const usernameInput = !isLogin ? document.getElementById('username').value : undefined;
+    e.preventDefault();     
+
+    const passwordInput = document.getElementById('password').value;    
     
     const endpoint = isLogin ? '/api/login' : '/api/register';
 
-    const payload = isLogin 
-        ? { email: emailInput, password: passwordInput } 
-        : { email: emailInput, username: usernameInput, password: passwordInput };
+    let payload;
+
+    if (isLogin) {
+        const loginInput = document.getElementById('login').value;
+        
+        payload = {
+            login: loginInput,
+            password: passwordInput
+        };
+    } else {
+        const emailInput = document.getElementById('email').value;
+        const usernameInput =document.getElementById('username').value;
+
+        payload = {
+            email: emailInput,
+            username: usernameInput,
+            password: passwordInput
+        };
+    }
 
     try {
         const res = await fetch(`http://localhost:3000${endpoint}`, {

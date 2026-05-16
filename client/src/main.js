@@ -13,9 +13,9 @@ export function renderApp() {
     } else {
         appContainer.innerHTML = `
             <div class="app-container">
-                <header class="app-header" style="padding: 10px; background-color: #111; color: white; display: flex; justify-content: space-between;">
-                    <h2 style="margin: 0;">Great Battle</h2>
-                    <button id="logout-btn" style="padding: 5px 15px; cursor: pointer;">Logout</button>
+                <header class="app-header">
+                    <h2 class="header-logo">GREAT BATTLE</h2>
+                    <button id="logout-btn">Logout</button>
                 </header>
                 <div id="game-content"></div> 
             </div>

@@ -3,6 +3,7 @@ const db = require('../config/db');
 const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
+const { error } = require('console');
 
 const SECRET = process.env.JWT_SECRET || 'supersecret';
 
@@ -38,7 +39,7 @@ exports.register = async (req, res) => {
         
         res.status(201).json({ 
             token, 
-            user: { id: insertId, username: username, avatar: null } 
+            user: { id: insertId, username: username, email: email, avatar: null } 
         });
     } catch (error) {
         console.error(error);
@@ -48,9 +49,9 @@ exports.register = async (req, res) => {
 
 // --- LOGIN  ---
 exports.login = async (req, res) => {
-    const { email, password } = req.body;
+    const { login, password } = req.body;
     try {
-        const [rows] = await db.execute('SELECT * FROM Users WHERE email = ?', [email]);
+        const [rows] = await db.execute('SELECT * FROM Users WHERE email = ? OR username = ?', [login, login]);
         const user = rows[0];
 
         if (!user || !(await bcrypt.compare(password, user.password_hash))) {
@@ -58,37 +59,124 @@ exports.login = async (req, res) => {
         }
 
         const token = generateToken({ id: user.id, username: user.username });
-        res.json({ token, user: { id: user.id, username: user.username, avatar: user.avatar } });
+        res.json({ token, user: { id: user.id, username: user.username, email: user.email, avatar: user.avatar } });
     } catch (error) {
         console.error(error);
         res.status(500).json({ error: 'Login failed' });
     }
 };
 
-// --- UPDATE AVATAR  ---
-exports.updateAvatar = async (req, res) => {
-    const { base64Image } = req.body;
+// --- UPDATE PROFILE  ---
+exports.updateProfile = async (req, res) => {
     const userId = req.user.id;
+    const { username, email, currentPassword, password, base64Image } = req.body;
 
     try {
-        if (!base64Image) {
-            return res.status(400).json({ error: 'No image provided' });
+        const updates = [];
+        const values = [];
+
+        if (username && username.trim() !== ""){
+            const [existingUsername] = await db.execute(
+                "SELECT id FROM Users WHERE username = ? AND id != ?",
+                [username, userId]
+            );
+
+            if (existingUsername.length > 0) {
+                return res.status(409).json({ error: "Username already taken" });
+            }
+
+            updates.push("username = ?");
+            values.push(username);
         }
 
-        const base64Data = base64Image.replace(/^data:image\/\w+;base64,/, '');
-        const extension = base64Image.substring("data:image/".length, base64Image.indexOf(";base64"));
-        const fileName = `user_${userId}_${Date.now()}.${extension}`;
+        if (email && email.trim() !== ""){
+            const [existingEmail] = await db.execute(
+                "SELECT id FROM Users WHERE email = ? AND id != ?",
+                [email, userId]
+            );
 
-        const filePath = path.join(__dirname, '../../uploads/avatars', fileName);
+            if (existingEmail.length > 0) {
+                return res.status(409).json({ error: "Email already in use" });
+            }
+            
+            updates.push("email = ?");
+            values.push(email);
+        }
 
-        fs.writeFileSync(filePath, base64Data, 'base64');
+        if (password && password.trim() !== ""){
+            if (!currentPassword) {
+                return res.status(400).json({
+                    error: "Current password is required"
+                });
+            }
 
-        const avatarUrl = `http://localhost:3000/avatars/${fileName}`;
-        await db.execute('UPDATE Users SET avatar = ? WHERE id = ?', [avatarUrl, userId]);
+            const [rows] = await db.execute(
+                "SELECT password_hash FROM Users WHERE id = ?",
+                [userId]
+            );
 
-        res.json({ message: 'Avatar updated', avatarUrl });
+            const user = rows[0];
+
+            const isMatch = await bcrypt.compare(
+                currentPassword,
+                user.password_hash
+            );
+
+            if (!isMatch) {
+                return res.status(401).json({
+                    error: "Current password is incorrect"
+                });
+            }
+
+            const newHash = await bcrypt.hash(password, 10);
+
+            updates.push("password_hash = ?");
+            values.push(newHash);
+        }
+
+        if (base64Image) {
+            const base64Data = base64Image.replace(/^data:image\/\w+;base64,/, '');
+            const extension = base64Image.substring(
+                "data:image/".length,
+                base64Image.indexOf(";base64")
+            );
+
+            const fileName = `user_${userId}_${Date.now()}.${extension}`;
+            const filePath = path.join(
+                __dirname,
+                '../../uploads/avatars',
+                fileName
+            );
+
+            fs.writeFileSync(filePath, base64Data, 'base64');
+
+            const avatarUrl = `http://localhost:3000/avatars/${fileName}`;
+
+            updates.push("avatar = ?");
+            values.push(avatarUrl);
+        }
+
+        if (updates.length === 0) {
+            return res.status(400).json({
+                error: "Nothing to update"
+            });
+        }
+
+        values.push(userId);
+
+        await db.execute(
+            `UPDATE Users SET ${updates.join(", ")} WHERE id = ?`,
+            values
+        );
+
+        const [rows] = await db.execute(
+            "SELECT id, username, email, avatar FROM Users WHERE id = ?",
+            [userId]
+        );
+
+        res.json({ user: rows[0] });
     } catch (error) {
         console.error(error);
-        res.status(500).json({ error: 'Failed to update avatar' });
+        res.status(500).json({ error: 'Profile update failed' });
     }
 };
