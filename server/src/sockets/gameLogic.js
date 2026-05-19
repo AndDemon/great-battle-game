@@ -42,7 +42,6 @@ module.exports = (io) => {
     });
 
     io.on('connection', (socket) => {
-        // ... ДАЛІ ЙДЕ ТВІЙ КОД БЕЗ ЗМІН (const userId = socket.user.id; і т.д.) ...
         const userId = socket.user.id;
 
         // 1. Reconnect Logic
@@ -73,8 +72,6 @@ module.exports = (io) => {
                         let hand = [];
                         while (hand.length < 4) {
                             const dbCard = cards[Math.floor(Math.random() * cards.length)];
-                            
-                            // ЗМІНЕНО: Шукаємо карту тільки якщо в неї ще немає x2
                             const existingCard = hand.find(c => c.name === dbCard.name && c.stackCount < 2);
                             
                             if (existingCard) {
@@ -143,6 +140,7 @@ socket.on('intent_play_card', ({ roomId, cardUniqueHandId }) => {
             const existingBoardCard = player.board.find(c => c.name === card.name);
             if (!existingBoardCard && player.board.length >= 6) return;
             player.energy -= card.cost;
+            
             player.hand.splice(cardIndex, 1);
             if (existingBoardCard) {
                 existingBoardCard.stackCount = (existingBoardCard.stackCount || 1) + (card.stackCount || 1);

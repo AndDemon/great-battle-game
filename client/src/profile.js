@@ -17,7 +17,6 @@ export function renderProfile(container) {
     const user = JSON.parse(userString);
     const token = localStorage.getItem('token');
     
-    // Вказуємо твій локальний дефолтний аватар
     const DEFAULT_AVATAR = 'http://localhost:3000/avatars/default.png';
     const avatarUrl = user.avatar || DEFAULT_AVATAR;
 
@@ -49,7 +48,6 @@ export function renderProfile(container) {
             </div>
         </div>`;
 
-    // Якщо картинка не провантажиться, ставимо дефолт
     document.getElementById('profile-avatar-img').onerror = function() {
         this.src = DEFAULT_AVATAR;
     };
